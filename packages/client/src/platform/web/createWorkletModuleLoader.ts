@@ -8,7 +8,7 @@ function cacheKey(processorName: string, path?: string) {
   return path ? `${processorName} ${path}` : processorName;
 }
 
-async function addWorkletModule({
+export async function addWorkletModule({
   worklet,
   name,
   key,
