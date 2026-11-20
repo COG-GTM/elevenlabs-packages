@@ -2102,6 +2102,16 @@ describe("elevenlabs-convai", () => {
         .toBeInTheDocument();
       await expect.element(page.getByText("js link")).toBeInTheDocument();
 
+      await new Promise(resolve => setTimeout(resolve, 200));
+      expect((window as { __termsXss?: number }).__termsXss).toBeUndefined();
+
+      const terms = element.shadowRoot!.querySelector(".terms")!;
+      expect(terms).not.toBeNull();
+      expect(terms.querySelector("img, script, svg, iframe")).toBeNull();
+      expect(terms.querySelector("[onerror], [onclick], [onbegin]")).toBeNull();
+      expect(terms.querySelector('a[href^="javascript:"]')).toBeNull();
+      expect(terms.innerHTML).not.toMatch(/javascript:|onerror|__termsXss/);
+
       const safeLink = page.getByRole("link", { name: "Safe link" });
       await expect
         .element(safeLink)
@@ -2111,16 +2121,6 @@ describe("elevenlabs-convai", () => {
         .element(safeLink)
         .toHaveAttribute("rel", "noopener noreferrer");
       await expect.element(safeLink).not.toHaveAttribute("onclick");
-
-      const terms = element.shadowRoot!.querySelector(".terms")!;
-      expect(terms).not.toBeNull();
-      expect(terms.querySelector("img, script, svg, iframe")).toBeNull();
-      expect(terms.querySelector("[onerror], [onclick], [onbegin]")).toBeNull();
-      expect(terms.querySelector('a[href^="javascript:"]')).toBeNull();
-      expect(terms.innerHTML).not.toMatch(/javascript:|onerror|__termsXss/);
-
-      await new Promise(resolve => setTimeout(resolve, 200));
-      expect((window as { __termsXss?: number }).__termsXss).toBeUndefined();
     });
   });
 
