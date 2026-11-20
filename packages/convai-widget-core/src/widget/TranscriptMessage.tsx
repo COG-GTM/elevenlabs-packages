@@ -10,6 +10,7 @@ import {
   type DisplayTranscriptEntry,
   type ToolCallStatusType,
 } from "../utils/display-transcript";
+import { isHttpsUrl } from "../utils/isHttpsUrl";
 import { useTextContents } from "../contexts/text-contents";
 import {
   useMarkdownLinkConfig,
@@ -82,14 +83,6 @@ function AgentMessageBubble({
       )}
     </div>
   );
-}
-
-function isHttpsUrl(url: string): boolean {
-  try {
-    return new URL(url).protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function UserMessageBubble({

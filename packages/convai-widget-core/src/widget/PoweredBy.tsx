@@ -1,8 +1,12 @@
 import { useWidgetConfig } from "../contexts/widget-config";
 import { clsx } from "clsx";
+import { isHttpsUrl } from "../utils/isHttpsUrl";
+
+const DEFAULT_LINK = "https://elevenlabs.io/agents";
 
 export function PoweredBy() {
   const config = useWidgetConfig();
+  const overrideLink = config.value.override_link;
 
   if (config.value.disable_banner) {
     return null;
@@ -22,9 +26,12 @@ export function PoweredBy() {
     >
       <span className="opacity-30">Powered by</span>{" "}
       <a
-        href={config.value.override_link || "https://elevenlabs.io/agents"}
+        href={
+          overrideLink && isHttpsUrl(overrideLink) ? overrideLink : DEFAULT_LINK
+        }
         className="underline cursor-pointer pointer-events-auto focus-visible:outline-hidden opacity-30 hover:opacity-50 focus-visible:opacity-100 focus-visible:underline-offset-2"
         target="_blank"
+        rel="noopener noreferrer"
       >
         ElevenAgents
       </a>
