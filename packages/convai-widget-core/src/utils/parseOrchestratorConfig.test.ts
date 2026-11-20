@@ -24,7 +24,6 @@ describe("parseOrchestratorConfig", () => {
           bedrock_inference_profile: "global",
           post_call_transcription_webhook: {
             url: "https://example.com/t",
-            hmac_secret: "0123456789abcdef",
           },
         })
       )
@@ -37,7 +36,6 @@ describe("parseOrchestratorConfig", () => {
       bedrockInferenceProfile: "global",
       postCallTranscriptionWebhook: {
         url: "https://example.com/t",
-        hmacSecret: "0123456789abcdef",
       },
       postCallAudioWebhook: undefined,
     });

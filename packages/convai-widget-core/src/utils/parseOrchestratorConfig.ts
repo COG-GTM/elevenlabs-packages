@@ -21,6 +21,9 @@ function asStringList(value: unknown): string[] | undefined {
     : undefined;
 }
 
+const HMAC_SECRET_ERROR =
+  "[ConversationalAI] orchestrator-agent-config is public page markup, so it must not contain a webhook hmac_secret. Configure webhook signing secrets on the orchestrator server instead.";
+
 function parseWebhook(
   value: unknown
 ): PostCallWebhookConfig | undefined | null {
@@ -28,18 +31,19 @@ function parseWebhook(
     return undefined;
   }
   if (!isRecord(value) || typeof value.url !== "string" || !value.url) {
+    console.error(
+      "[ConversationalAI] orchestrator-agent-config webhooks need a string url"
+    );
     return null;
   }
-  if ("hmac_secret" in value && typeof value.hmac_secret !== "string") {
-    // Dropping just the secret would silently disable delivery signing.
+  if ("hmac_secret" in value) {
+    // Any visitor can read the attribute, so a secret here could be used to
+    // forge signed webhook deliveries. Refuse rather than silently dropping
+    // it, which would disable signing without the integrator noticing.
+    console.error(HMAC_SECRET_ERROR);
     return null;
   }
-  return {
-    url: value.url,
-    ...(typeof value.hmac_secret === "string"
-      ? { hmacSecret: value.hmac_secret }
-      : {}),
-  };
+  return { url: value.url };
 }
 
 export function parseOrchestratorConfig(
@@ -67,9 +71,6 @@ export function parseOrchestratorConfig(
     );
     const audioWebhook = parseWebhook(parsed.post_call_audio_webhook);
     if (transcriptionWebhook === null || audioWebhook === null) {
-      console.error(
-        "[ConversationalAI] orchestrator-agent-config webhooks need a string url and, if given, a string hmac_secret"
-      );
       return null;
     }
     return {
