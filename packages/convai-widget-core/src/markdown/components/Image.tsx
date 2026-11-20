@@ -8,6 +8,51 @@ import { ContentBlock } from "./ContentBlock";
 import { Button } from "../../components/Button";
 import { useTextContents } from "../../contexts/text-contents";
 
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
+
+function getImageExtension(mimeType: string): string | undefined {
+  return IMAGE_EXTENSIONS[mimeType.split(";")[0].trim().toLowerCase()];
+}
+
+function getSafeBaseName(src: string, alt?: string): string {
+  let pathName = "";
+  try {
+    pathName =
+      new URL(src, window.location.origin).pathname.split("/").pop() || "";
+  } catch {
+    // Fall back to alt text or the default name
+  }
+  try {
+    pathName = decodeURIComponent(pathName);
+  } catch {
+    // Keep the raw segment
+  }
+  const raw = alt || pathName.replace(/\.[^.]*$/, "");
+  const sanitized = raw
+    .replace(/[^A-Za-z0-9_-]+/g, "_")
+    .replace(/^[_-]+|[_-]+$/g, "")
+    .slice(0, 64);
+  return sanitized || "image";
+}
+
+export async function downloadImage(src: string, alt?: string) {
+  const response = await fetch(src);
+  if (!response.ok) {
+    throw new Error(`Image request failed with status ${response.status}`);
+  }
+  const blob = await response.blob();
+  const extension = getImageExtension(blob.type);
+  if (!extension) {
+    throw new Error(`Refusing to download non-image content: ${blob.type}`);
+  }
+  save(`${getSafeBaseName(src, alt)}.${extension}`, blob, blob.type);
+}
+
 function useDownloadImage({
   src,
   alt,
@@ -19,48 +64,13 @@ function useDownloadImage({
 }) {
   const { isAnimating } = useContext(StreamdownRuntimeContext);
 
-  const downloadImage = useCallback(async () => {
+  const handleDownload = useCallback(async () => {
     if (!src) {
       return;
     }
 
     try {
-      const response = await fetch(src.toString());
-      const blob = await response.blob();
-
-      // Extract filename from URL or use alt text with proper extension
-      const urlPath = new URL(src.toString(), window.location.origin).pathname;
-      const originalFilename = urlPath.split("/").pop() || "";
-      const hasExtension =
-        originalFilename.includes(".") &&
-        originalFilename.split(".").pop()?.length! <= 4;
-
-      let filename = "";
-
-      if (hasExtension) {
-        filename = originalFilename;
-      } else {
-        // Determine extension from blob type
-        const mimeType = blob.type;
-        let extension = "png"; // default
-
-        if (mimeType.includes("jpeg") || mimeType.includes("jpg")) {
-          extension = "jpg";
-        } else if (mimeType.includes("png")) {
-          extension = "png";
-        } else if (mimeType.includes("svg")) {
-          extension = "svg";
-        } else if (mimeType.includes("gif")) {
-          extension = "gif";
-        } else if (mimeType.includes("webp")) {
-          extension = "webp";
-        }
-
-        const baseName = alt || originalFilename || "image";
-        filename = `${baseName.toString().replace(/\.[^/.]+$/, "")}.${extension}`;
-      }
-
-      save(filename, blob, blob.type);
+      await downloadImage(src.toString(), alt);
     } catch (error) {
       console.error("Failed to download image:", error);
       onError?.(error as Error);
@@ -68,7 +78,7 @@ function useDownloadImage({
   }, [src, alt, onError]);
 
   return {
-    downloadImage,
+    downloadImage: handleDownload,
     disabled: isAnimating,
   };
 }

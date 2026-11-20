@@ -51,6 +51,10 @@ const TEXT_CHAT_CONFIG: WidgetConfig = {
   first_message: "",
 };
 
+const IMAGE_DOWNLOAD_HOST = "https://evil.example";
+const PNG_PIXEL =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
 export const AGENTS = {
   basic: BASIC_CONFIG,
   text_only: {
@@ -233,6 +237,16 @@ const codeBlock = true;
     terms_html: undefined,
     default_expanded: true,
     first_message: `[Relative link](/relative)`,
+  },
+  markdown_image_download: {
+    ...BASIC_CONFIG,
+    text_only: true,
+    terms_html: undefined,
+    default_expanded: true,
+    first_message: `![Invoice](${IMAGE_DOWNLOAD_HOST}/invoice.exe)
+
+![Team photo](${IMAGE_DOWNLOAD_HOST}/photo.exe)
+`,
   },
   markdown_agent_response: {
     ...BASIC_CONFIG,
@@ -776,6 +790,17 @@ function attachmentImage(label: string) {
 }
 
 export const Worker = setupWorker(
+  http.get(`${IMAGE_DOWNLOAD_HOST}/invoice.exe`, () => {
+    return new HttpResponse("MZ fake executable", {
+      headers: { "Content-Type": "application/octet-stream" },
+    });
+  }),
+  http.get(`${IMAGE_DOWNLOAD_HOST}/photo.exe`, () => {
+    return new HttpResponse(
+      Uint8Array.from(atob(PNG_PIXEL), c => c.charCodeAt(0)),
+      { headers: { "Content-Type": "image/png" } }
+    );
+  }),
   http.get(`${ATTACHMENT_HOST}/:fileName`, ({ params }) => {
     const fileName = String(params.fileName);
     if (!fileName.endsWith(".svg")) {
