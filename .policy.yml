@@ -1,6 +1,9 @@
+# Every rule whose paths match must be satisfied, so a pull request that
+# touches several owned packages needs an approval from each of their owners.
+# Rules whose "if" does not match are skipped by "and".
 policy:
   approval:
-    - or:
+    - and:
         - convai-widget changes approved by widget team
         - client changes approved by owner
         - react and example changes approved by owner
@@ -62,9 +65,8 @@ approval_rules:
     options:
       <<: *default_options
 
-  # Must not apply when an owned path changes; the top-level "or" would
-  # otherwise let a maintainer approval bypass the owners. Keep this list in
-  # sync with the paths of the rules above.
+  # Applies only when no owned path changes, so owned-package changes need
+  # only their owners. Keep this list in sync with the paths of the rules above.
   - name: other changes approved by a maintainer
     description: Changes outside the owned packages require approval from a maintainer
     if:
