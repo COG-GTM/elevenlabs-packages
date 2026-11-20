@@ -54,3 +54,7 @@ updates:
           - "vite"
           - "vite-*"
           - "vitest"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
