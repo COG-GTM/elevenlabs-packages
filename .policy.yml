@@ -21,14 +21,15 @@ approval_rules:
       allow_author: false
       allow_contributor: false
       allow_non_author_contributor: false
-      invalidate_on_push: false
+      # An approval only covers the commits the reviewer saw. Merges from the
+      # base branch do not reset approvals.
+      invalidate_on_push: true
       ignore_update_merges: true
+      # Only GitHub reviews count; comment approvals ("LGTM", ":+1:") cannot be
+      # dismissed by GitHub and are tied to no specific commit.
       methods:
         github_review: true
-        comment_patterns:
-          - "^:\\+1:$"
-          - "^👍$"
-          - "^(?i:lgtm)$"
+        comment_patterns: []
         comments: []
       request_review:
         enabled: true
