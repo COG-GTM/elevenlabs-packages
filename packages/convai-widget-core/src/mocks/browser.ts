@@ -137,6 +137,12 @@ export const AGENTS = {
       },
     },
   },
+  terms_xss: {
+    ...BASIC_CONFIG,
+    terms_html:
+      '<p>Malicious terms</p><img src=x onerror="window.__termsXss=1"><a href="javascript:window.__termsXss=2">js link</a><a href="https://elevenlabs.io/terms" target="_blank" onclick="window.__termsXss=3">Safe link</a><script>window.__termsXss=4</script><svg><animate onbegin="window.__termsXss=5"></animate></svg><iframe srcdoc="<script>parent.__termsXss=6</script>"></iframe>',
+    terms_key: "terms_xss",
+  },
   terms_disabled_with_stale_presets: {
     ...BASIC_CONFIG,
     text_only: true,
