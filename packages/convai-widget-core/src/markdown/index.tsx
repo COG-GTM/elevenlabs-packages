@@ -12,7 +12,10 @@ import remarkGfm from "remark-gfm";
 import type { PluggableList } from "unified";
 import { components as defaultComponents } from "./components/components";
 import { Markdown, type Options } from "./utils/markdown";
-import { allowedDomainsToLinkPrefixes } from "./utils/allowedDomainsToLinkPrefixes";
+import {
+  getAllowedLinkPrefixes,
+  getDefaultOrigin,
+} from "./utils/linkAllowlist";
 import type { MarkdownLinkConfig } from "../contexts/widget-config";
 import { parseMarkdownIntoBlocks } from "./utils/parse-blocks";
 import { parseIncompleteMarkdown } from "./utils/parse-incomplete-markdown";
@@ -21,37 +24,12 @@ import { rehypeUnwrapIncompleteLinks } from "./utils/rehype-unwrap-incomplete-li
 import { cn } from "../utils/cn";
 import { ParsersContext, parserConfig } from "./utils/highlighter";
 
-function getDefaultOrigin(): string {
-  const isInIframe = window.location !== window.parent.location;
-
-  if (isInIframe) {
-    // Prefer ancestorOrigins (more reliable), fall back to referrer
-    // Firefox do not support https://caniuse.com/#search=ancestorOrigins
-    const { ancestorOrigins } = document.location;
-    if (ancestorOrigins && ancestorOrigins.length) {
-      return ancestorOrigins[0];
-    }
-    if (document.referrer) {
-      try {
-        return new URL(document.referrer).origin;
-      } catch {
-        // Fall through to current origin
-      }
-    }
-  }
-
-  return document.location.origin;
-}
-
 function createRehypePlugins(
   linkConfig: MarkdownLinkConfig,
   styleAudioTags: boolean
 ): PluggableList {
   const defaultOrigin = getDefaultOrigin();
-  const allowedLinkPrefixes = [
-    defaultOrigin,
-    ...allowedDomainsToLinkPrefixes(linkConfig),
-  ];
+  const allowedLinkPrefixes = getAllowedLinkPrefixes(linkConfig, defaultOrigin);
 
   return [
     // Before sanitize and harden, which would strip or block the placeholder href

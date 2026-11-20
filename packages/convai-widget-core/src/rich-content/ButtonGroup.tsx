@@ -1,5 +1,11 @@
 import { Button } from "../components/Button";
 import { useConversation } from "../contexts/conversation";
+import { useMarkdownLinkConfig } from "../contexts/widget-config";
+import {
+  getAllowedLinkPrefixes,
+  getDefaultOrigin,
+  isLinkAllowed,
+} from "../markdown/utils/linkAllowlist";
 
 export interface MessageButton {
   type: "message";
@@ -20,7 +26,11 @@ export interface ButtonGroupProps {
   richContentId?: string;
 }
 
-export function ButtonGroup({ buttons, richContentId }: ButtonGroupProps) {
+export function ButtonGroup({
+  buttons: allButtons,
+  richContentId,
+}: ButtonGroupProps) {
+  const linkConfig = useMarkdownLinkConfig();
   const {
     sendUserMessage,
     startSession,
@@ -33,6 +43,18 @@ export function ButtonGroup({ buttons, richContentId }: ButtonGroupProps) {
   const disabled =
     (status.value !== "connected" && !isDisconnected.value) ||
     isWaitingForAgent.value;
+
+  // Link buttons follow the same host allowlist as links in agent messages
+  const defaultOrigin = getDefaultOrigin();
+  const allowedLinkPrefixes = getAllowedLinkPrefixes(
+    linkConfig.value,
+    defaultOrigin
+  );
+  const buttons = allButtons.filter(
+    button =>
+      button.type !== "link" ||
+      isLinkAllowed(button.link, allowedLinkPrefixes, defaultOrigin)
+  );
 
   if (buttons.length === 0) return null;
 

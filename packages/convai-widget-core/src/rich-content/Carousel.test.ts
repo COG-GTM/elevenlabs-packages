@@ -93,4 +93,35 @@ describe("Carousel", () => {
       .poll(() => card.getBoundingClientRect().height)
       .toBeLessThanOrEqual(card.closest(".overflow-y-auto")!.clientHeight);
   });
+
+  it("hides link buttons to hosts outside the allowed link hosts", async () => {
+    setupWebComponent({
+      "agent-id": "product_cards",
+      "markdown-link-allowed-hosts": "acme.example",
+    });
+    const card = (await askForBoots()).closest(".snap-center")!;
+
+    expect(card.querySelector("a")).toBeNull();
+    expect(card.textContent).toContain("Add to cart");
+  });
+
+  it("hides link buttons to other sites when no hosts are allowed", async () => {
+    setupWebComponent({ "agent-id": "product_cards" });
+    const card = (await askForBoots()).closest(".snap-center")!;
+
+    expect(card.querySelector("a")).toBeNull();
+    expect(card.textContent).toContain("Add to cart");
+  });
+
+  it("shows link buttons to allowed hosts", async () => {
+    setupWebComponent({
+      "agent-id": "product_cards",
+      "markdown-link-allowed-hosts": "example.com",
+    });
+    const card = (await askForBoots()).closest(".snap-center")!;
+
+    expect(card.querySelector("a")?.getAttribute("href")).toBe(
+      "https://example.com"
+    );
+  });
 });
