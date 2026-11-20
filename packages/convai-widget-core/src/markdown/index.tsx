@@ -18,6 +18,7 @@ import { parseMarkdownIntoBlocks } from "./utils/parse-blocks";
 import { parseIncompleteMarkdown } from "./utils/parse-incomplete-markdown";
 import { rehypeAudioTags } from "./utils/rehype-audio-tags";
 import { rehypeUnwrapIncompleteLinks } from "./utils/rehype-unwrap-incomplete-links";
+import { rehypeBlockCrossOriginRelativeLinks } from "./utils/rehype-block-cross-origin-relative-links";
 import { cn } from "../utils/cn";
 import { ParsersContext, parserConfig } from "./utils/highlighter";
 
@@ -78,6 +79,7 @@ function createRehypePlugins(
         allowDataImages: true,
       },
     ],
+    [rehypeBlockCrossOriginRelativeLinks, { defaultOrigin }],
   ];
 }
 
