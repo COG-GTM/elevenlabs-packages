@@ -1,5 +1,6 @@
 import { useWidgetConfig } from "../contexts/widget-config";
 import { clsx } from "clsx";
+import { safeHttpUrl } from "../utils/safeHttpUrl";
 
 export function PoweredBy() {
   const config = useWidgetConfig();
@@ -22,9 +23,13 @@ export function PoweredBy() {
     >
       <span className="opacity-30">Powered by</span>{" "}
       <a
-        href={config.value.override_link || "https://elevenlabs.io/agents"}
+        href={
+          safeHttpUrl(config.value.override_link) ??
+          "https://elevenlabs.io/agents"
+        }
         className="underline cursor-pointer pointer-events-auto focus-visible:outline-hidden opacity-30 hover:opacity-50 focus-visible:opacity-100 focus-visible:underline-offset-2"
         target="_blank"
+        rel="noopener noreferrer"
       >
         ElevenAgents
       </a>
