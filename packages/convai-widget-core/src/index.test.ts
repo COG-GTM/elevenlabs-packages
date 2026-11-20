@@ -2085,6 +2085,45 @@ describe("elevenlabs-convai", () => {
     });
   });
 
+  describe("terms html sanitization", () => {
+    afterEach(() => {
+      delete (window as { __termsXss?: number }).__termsXss;
+    });
+
+    it("should strip script-capable markup from terms_html", async () => {
+      const element = setupWebComponent({
+        "agent-id": "terms_xss",
+        variant: "full",
+      });
+
+      await page.getByRole("button", { name: "Start a call" }).click();
+      await expect
+        .element(page.getByText("Malicious terms"))
+        .toBeInTheDocument();
+      await expect.element(page.getByText("js link")).toBeInTheDocument();
+
+      const safeLink = page.getByRole("link", { name: "Safe link" });
+      await expect
+        .element(safeLink)
+        .toHaveAttribute("href", "https://elevenlabs.io/terms");
+      await expect.element(safeLink).toHaveAttribute("target", "_blank");
+      await expect
+        .element(safeLink)
+        .toHaveAttribute("rel", "noopener noreferrer");
+      await expect.element(safeLink).not.toHaveAttribute("onclick");
+
+      const terms = element.shadowRoot!.querySelector(".terms")!;
+      expect(terms).not.toBeNull();
+      expect(terms.querySelector("img, script, svg, iframe")).toBeNull();
+      expect(terms.querySelector("[onerror], [onclick], [onbegin]")).toBeNull();
+      expect(terms.querySelector('a[href^="javascript:"]')).toBeNull();
+      expect(terms.innerHTML).not.toMatch(/javascript:|onerror|__termsXss/);
+
+      await new Promise(resolve => setTimeout(resolve, 200));
+      expect((window as { __termsXss?: number }).__termsXss).toBeUndefined();
+    });
+  });
+
   describe("terms kill switch", () => {
     it("should not show terms modal when top-level terms are null even if language presets are set", async () => {
       setupWebComponent({
