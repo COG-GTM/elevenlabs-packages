@@ -137,6 +137,11 @@ export const AGENTS = {
       },
     },
   },
+  terms_xss: {
+    ...BASIC_CONFIG,
+    terms_html:
+      '<p>Malicious terms</p><img src=x onerror="window.__termsXss=1"><a href="javascript:window.__termsXss=1">JS link</a><a href="https://example.com/terms" target="_blank" onclick="window.__termsXss=1">Full terms</a><script>window.__termsXss=1</script><style>*{display:none}</style><iframe src="https://example.com"></iframe>',
+  },
   terms_disabled_with_stale_presets: {
     ...BASIC_CONFIG,
     text_only: true,
