@@ -2108,4 +2108,50 @@ describe("elevenlabs-convai", () => {
         .toBeInTheDocument();
     });
   });
+  describe("terms html sanitization", () => {
+    afterEach(() => {
+      delete (window as { __termsXss?: number }).__termsXss;
+    });
+
+    it("strips script-capable markup from terms_html", async () => {
+      const widget = setupWebComponent({
+        "agent-id": "unsafe_terms",
+        variant: "compact",
+      });
+
+      await page.getByRole("button", { name: "Start a call" }).click();
+      await expect.element(page.getByText("Unsafe terms")).toBeInTheDocument();
+
+      const terms = widget.shadowRoot?.querySelector(".terms");
+      if (!terms) {
+        throw new Error("Expected terms modal to be rendered");
+      }
+
+      const safeLink = terms.querySelector(
+        'a[href="https://example.com/terms"]'
+      );
+      expect(safeLink?.textContent).toBe("full terms");
+      expect(terms.querySelector("h2")).not.toBeNull();
+
+      await expect.element(page.getByText("script link")).toBeInTheDocument();
+      const scriptLink = Array.from(terms.querySelectorAll("a")).find(
+        a => a.textContent === "script link"
+      );
+      expect(scriptLink?.getAttribute("href") ?? "").not.toMatch(
+        /javascript:/i
+      );
+
+      expect(terms.querySelector("img[onerror]")).toBeNull();
+      expect(terms.querySelector("[onclick]")).toBeNull();
+      expect(terms.querySelector("[style]")).toBeNull();
+      expect(terms.querySelector("script")).toBeNull();
+      expect(terms.querySelector("iframe")).toBeNull();
+      expect(terms.innerHTML).not.toMatch(/javascript:/i);
+
+      (terms.querySelector("p:last-child") as HTMLElement | null)?.click();
+      scriptLink?.click();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect((window as { __termsXss?: number }).__termsXss).toBeUndefined();
+    });
+  });
 });
