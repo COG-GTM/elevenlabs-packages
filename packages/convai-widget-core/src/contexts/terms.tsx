@@ -1,8 +1,21 @@
-import { computed, ReadonlySignal, useSignal, useSignalEffect } from "@preact/signals";
+import {
+  computed,
+  ReadonlySignal,
+  useComputed,
+  useSignal,
+  useSignalEffect,
+} from "@preact/signals";
 import { ComponentChildren } from "preact";
 import { createContext, useMemo } from "preact/compat";
 
 import { useContextSafely } from "../utils/useContextSafely";
+import {
+  readTermsAccepted,
+  resolveAgentId,
+  storeTermsAccepted,
+  termsStorageKey,
+} from "../utils/termsStorage";
+import { useAttribute } from "./attributes";
 import { useLocalizedTerms } from "./widget-config";
 
 const TermsContext = createContext<{
@@ -24,10 +37,18 @@ interface StoredPromise {
 
 export function TermsProvider({ children }: TermsProviderProps) {
   const localizedTerms = useLocalizedTerms();
+  const agentId = useAttribute("agent-id");
+  const signedUrl = useAttribute("signed-url");
+  const storageKey = useComputed(() =>
+    termsStorageKey(
+      resolveAgentId(agentId.value, signedUrl.value),
+      localizedTerms.value.terms_key
+    )
+  );
 
   const termsShown = useSignal(false);
   const termsAcceptedState = useSignal(false);
-  
+
   const value = useMemo(() => {
     const termsAccepted = computed(
       () => !localizedTerms.value.terms_html || termsAcceptedState.value
@@ -45,10 +66,7 @@ export function TermsProvider({ children }: TermsProviderProps) {
       acceptTerms: () => {
         termsAcceptedState.value = true;
         termsShown.value = false;
-        const key = localizedTerms.peek().terms_key;
-        if (key) {
-          localStorage.setItem(key, "true");
-        }
+        storeTermsAccepted(storageKey.peek());
 
         termsPromises.forEach(value => value.resolve());
         termsPromises = [];
@@ -62,12 +80,10 @@ export function TermsProvider({ children }: TermsProviderProps) {
         }
       },
     };
-  }, [termsShown, termsAcceptedState, localizedTerms]);
+  }, [termsShown, termsAcceptedState, localizedTerms, storageKey]);
 
   useSignalEffect(() => {
-    const key = localizedTerms.value.terms_key;
-    const termsAlreadyAccepted = key ? !!localStorage.getItem(key) : false;
-    termsAcceptedState.value = termsAlreadyAccepted;
+    termsAcceptedState.value = readTermsAccepted(storageKey.value);
   });
 
   return (

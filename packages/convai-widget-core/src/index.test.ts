@@ -2085,6 +2085,70 @@ describe("elevenlabs-convai", () => {
     });
   });
 
+  describe("terms storage key", () => {
+    beforeEach(() => localStorage.clear());
+    afterEach(() => localStorage.clear());
+
+    async function acceptTerms() {
+      await page.getByRole("button", { name: "Start a call" }).click();
+      await expect.element(page.getByText("Test terms")).toBeInTheDocument();
+      await page.getByRole("button", { name: "Accept" }).click();
+      await expect
+        .element(page.getByRole("button", { name: "End", exact: true }))
+        .toBeInTheDocument();
+    }
+
+    it.each([
+      "terms_key_host_collision",
+      "terms_key_preset_host_collision",
+    ] as const)(
+      "%s should not read or overwrite a host page key",
+      async agentId => {
+        localStorage.setItem("auth_token", "host-secret-token");
+        setupWebComponent({ "agent-id": agentId, variant: "compact" });
+
+        await acceptTerms();
+
+        expect(localStorage.getItem("auth_token")).toBe("host-secret-token");
+        expect(
+          localStorage.getItem(`elevenlabs_convai_terms_${agentId}_auth_token`)
+        ).toBe("true");
+      }
+    );
+
+    it("should skip terms after a previous acceptance for the same agent", async () => {
+      localStorage.setItem(
+        "elevenlabs_convai_terms_terms_key_host_collision_auth_token",
+        "true"
+      );
+      setupWebComponent({
+        "agent-id": "terms_key_host_collision",
+        variant: "compact",
+      });
+
+      await page.getByRole("button", { name: "Start a call" }).click();
+      await expect
+        .element(page.getByRole("button", { name: "End", exact: true }))
+        .toBeInTheDocument();
+      await expect
+        .element(page.getByText("Test terms"))
+        .not.toBeInTheDocument();
+    });
+
+    it("should not treat an arbitrary stored value as acceptance", async () => {
+      localStorage.setItem(
+        "elevenlabs_convai_terms_terms_key_host_collision_auth_token",
+        "something-else"
+      );
+      setupWebComponent({
+        "agent-id": "terms_key_host_collision",
+        variant: "compact",
+      });
+
+      await acceptTerms();
+    });
+  });
+
   describe("terms kill switch", () => {
     it("should not show terms modal when top-level terms are null even if language presets are set", async () => {
       setupWebComponent({

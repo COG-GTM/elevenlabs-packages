@@ -500,6 +500,18 @@ const codeBlock = true;
     text_only: false,
     supports_text_only: true,
   },
+  // terms_key names a key the host page might use for its own data.
+  terms_key_host_collision: {
+    ...BASIC_CONFIG,
+    terms_key: "auth_token",
+  },
+  terms_key_preset_host_collision: {
+    ...BASIC_CONFIG,
+    terms_key: "terms_default",
+    language_presets: {
+      en: { terms_html: "Test terms", terms_key: "auth_token" },
+    },
+  },
   // No terms_key, so acceptance only lives in memory and a reload would ask
   // again.
   persistent_session_terms: {
