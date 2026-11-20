@@ -52,6 +52,9 @@ function createRehypePlugins(
     defaultOrigin,
     ...allowedDomainsToLinkPrefixes(linkConfig),
   ];
+  // Images load without user interaction, so they must honor the same host
+  // allowlist as links to prevent data exfiltration via image URLs.
+  const allowedImagePrefixes = allowedLinkPrefixes;
 
   return [
     // Before sanitize and harden, which would strip or block the placeholder href
@@ -71,7 +74,7 @@ function createRehypePlugins(
     [
       rehypeHarden,
       {
-        allowedImagePrefixes: ["*"],
+        allowedImagePrefixes,
         allowedLinkPrefixes,
         allowedProtocols: ["*"],
         defaultOrigin,
