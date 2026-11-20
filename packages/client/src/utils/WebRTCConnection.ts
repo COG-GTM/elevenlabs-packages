@@ -84,8 +84,9 @@ export type ConnectionConfig = WebRTCConnectionConfig;
 
 const AGENT_JOIN_TIMEOUT_MS = 30_000;
 
-const isAgent = ({ identity }: Pick<RemoteParticipant, "identity">) =>
-  identity.includes("agent");
+// The server names the agent participant with this identity prefix.
+const isAgent = (participant: Pick<Participant, "identity"> | undefined) =>
+  !!participant?.identity?.startsWith("agent");
 
 function waitForAgent(room: Room, timeoutMs = AGENT_JOIN_TIMEOUT_MS) {
   return new Promise<void>((resolve, reject) => {
@@ -506,7 +507,17 @@ export class WebRTCConnection extends BaseConnection {
     // Handle incoming data messages
     this.room.on(
       RoomEvent.DataReceived,
-      (payload: Uint8Array, _participant) => {
+      (payload: Uint8Array, participant?: RemoteParticipant) => {
+        // Only the agent may send conversation events. Other participants in
+        // the room (an avatar, other users) and server-sent data with no
+        // participant must not drive tool calls or the transcript.
+        if (
+          !participant ||
+          !isAgent(participant) ||
+          isAvatar(this.room, participant)
+        ) {
+          return;
+        }
         try {
           const message = JSON.parse(new TextDecoder().decode(payload));
 
@@ -552,10 +563,7 @@ export class WebRTCConnection extends BaseConnection {
         } else if (avatar && track.kind === Track.Kind.Audio) {
           this.avatarAudioTrack = track as RemoteAudioTrack;
           await this.playRemoteAudio(this.avatarAudioTrack);
-        } else if (
-          track.kind === Track.Kind.Audio &&
-          participant.identity.includes("agent")
-        ) {
+        } else if (track.kind === Track.Kind.Audio && isAgent(participant)) {
           this.agentAudioTrack = track as RemoteAudioTrack;
           await this.playRemoteAudio(this.agentAudioTrack);
         }
@@ -585,7 +593,7 @@ export class WebRTCConnection extends BaseConnection {
         const speaker = speakers[0];
         if (speaker && isAvatar(this.room, speaker)) {
           this.voice = "avatar";
-        } else if (speaker?.identity.startsWith("agent")) {
+        } else if (isAgent(speaker)) {
           this.voice = "agent";
         } else {
           this.updateMode("listening");
@@ -601,7 +609,7 @@ export class WebRTCConnection extends BaseConnection {
       (participant: RemoteParticipant) => {
         if (isAvatar(this.room, participant)) {
           this.updateMode("listening");
-        } else if (participant.identity?.startsWith("agent")) {
+        } else if (isAgent(participant)) {
           // A full reconnect drops every remote participant before the room
           // leaves the connected state, so read the state once LiveKit is done.
           queueMicrotask(() => {
