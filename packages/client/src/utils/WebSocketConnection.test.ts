@@ -108,6 +108,55 @@ describe("WebSocketConnection", () => {
       expect(first.agent_config_dict).toEqual({ name: "test-agent" });
       expect(second.type).toBe("conversation_initiation_client_data");
     });
+
+    it("rejects a webhook hmacSecret before connecting without the development flag", async () => {
+      await expect(
+        WebSocketConnection.create({
+          orchestrator: {
+            ...orchestrator,
+            postCallTranscriptionWebhook: {
+              url: "https://example.com/t",
+              hmacSecret: "0123456789abcdef",
+            },
+          },
+        })
+      ).rejects.toThrow(/allowInsecureWebhookSecret/);
+      expect(globalThis.WebSocket).not.toHaveBeenCalled();
+      expect(mockSocket.send).not.toHaveBeenCalled();
+    });
+
+    it("sends the webhook hmacSecret only with the development flag", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const promise = WebSocketConnection.create({
+        orchestrator: {
+          ...orchestrator,
+          postCallTranscriptionWebhook: {
+            url: "https://example.com/t",
+            hmacSecret: "0123456789abcdef",
+          },
+          allowInsecureWebhookSecret: true,
+        },
+      });
+      emit("open", {});
+      emit("message", {
+        data: JSON.stringify({
+          type: "conversation_initiation_metadata",
+          conversation_initiation_metadata_event: {
+            conversation_id: "test-conv-id",
+            agent_output_audio_format: "pcm_16000",
+            user_input_audio_format: "pcm_16000",
+          },
+        }),
+      });
+      await promise;
+
+      const first = JSON.parse(mockSocket.send.mock.calls[0][0]);
+      expect(first.post_call_transcription_webhook).toEqual({
+        url: "https://example.com/t",
+        hmac_secret: "0123456789abcdef",
+      });
+      expect(warn).toHaveBeenCalled();
+    });
   });
 
   it("adds the persistent session params to the URL", async () => {

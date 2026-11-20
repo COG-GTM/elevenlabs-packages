@@ -5,6 +5,7 @@ import type { OrchestratorConfig } from "@elevenlabs/client";
 import { useAttribute } from "./attributes";
 import { useContextSafely } from "../utils/useContextSafely";
 import { parseOrchestratorConfig } from "../utils/parseOrchestratorConfig";
+import { parseBoolAttribute } from "../types/attributes";
 
 interface OrchestratorContextValue {
   enabled: ReadonlySignal<boolean>;
@@ -22,6 +23,9 @@ interface OrchestratorProviderProps {
 export function OrchestratorProvider({ children }: OrchestratorProviderProps) {
   const url = useAttribute("orchestrator-url");
   const agentConfig = useAttribute("orchestrator-agent-config");
+  const allowInsecureWebhookSecret = useAttribute(
+    "orchestrator-allow-insecure-webhook-secret"
+  );
   const agentId = useAttribute("agent-id");
   const signedUrl = useAttribute("signed-url");
 
@@ -37,7 +41,13 @@ export function OrchestratorProvider({ children }: OrchestratorProviderProps) {
     () => ({
       enabled: computed(() => !!url.value),
       config: computed(() =>
-        url.value ? parseOrchestratorConfig(url.value, agentConfig.value) : null
+        url.value
+          ? parseOrchestratorConfig(
+              url.value,
+              agentConfig.value,
+              parseBoolAttribute(allowInsecureWebhookSecret.value) === true
+            )
+          : null
       ),
     }),
     []
