@@ -137,6 +137,30 @@ export const AGENTS = {
       },
     },
   },
+  terms_xss: {
+    ...BASIC_CONFIG,
+    terms_html:
+      '<p>Malicious terms</p><img src=x onerror="window.__termsXss=1"><a href="javascript:window.__termsXss=1">JS link</a><a href="https://example.com/terms" target="_blank" onclick="window.__termsXss=1">Full terms</a><script>window.__termsXss=1</script><style>*{display:none}</style><iframe src="https://example.com"></iframe>',
+  },
+  terms_xss_language_preset: {
+    ...BASIC_CONFIG,
+    terms_html: "<p>Default terms</p>",
+    supported_language_overrides: ["en"],
+    language_presets: {
+      en: {
+        terms_html:
+          '<p>Malicious terms</p><img src=x onerror="window.__termsXss=1"><a href="javascript:window.__termsXss=1">JS link</a><a href="https://example.com/terms" target="_blank" onclick="window.__termsXss=1">Full terms</a>',
+      },
+    },
+  },
+  powered_by_js_link: {
+    ...BASIC_CONFIG,
+    override_link: "javascript:window.__termsXss=1",
+  },
+  powered_by_custom_link: {
+    ...BASIC_CONFIG,
+    override_link: "https://example.com/agents",
+  },
   terms_disabled_with_stale_presets: {
     ...BASIC_CONFIG,
     text_only: true,
