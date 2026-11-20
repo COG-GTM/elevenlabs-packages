@@ -118,6 +118,26 @@ with. A stale copy fails when the session starts, with an error naming the
 worklet and path. Copy the files from `node_modules` as part of your build
 rather than committing them, so they stay in step with upgrades.
 
+### Resampler (libsamplerate)
+
+When the browser can't run audio at the agent's sample rate, the SDK also loads
+the `libsamplerate` resampler worklet. By default it downloads
+`@alexanderolsen/libsamplerate-js@2.1.2/dist/libsamplerate.worklet.js` from
+`cdn.jsdelivr.net`, checks it against a SHA-256 hash pinned in the SDK, and
+only then loads it from a `blob:`/`data:` URL. A modified file is rejected and
+the session fails to start. This needs `connect-src https://cdn.jsdelivr.net`
+in your CSP.
+
+To avoid contacting the CDN at all, self-host that file (from the
+`@alexanderolsen/libsamplerate-js` npm package) and pass `libsampleratePath`:
+
+```js
+const conversation = await Conversation.startSession({
+  agentId: "agent_...",
+  libsampleratePath: "/vendor/libsamplerate.worklet.js",
+});
+```
+
 ## Approving MCP tool calls
 
 When an agent's MCP tool requires approval, the server sends an
