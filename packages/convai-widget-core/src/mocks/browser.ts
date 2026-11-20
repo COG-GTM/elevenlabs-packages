@@ -137,6 +137,16 @@ export const AGENTS = {
       },
     },
   },
+  unsafe_terms: {
+    ...BASIC_CONFIG,
+    terms_html:
+      '<h2>Unsafe terms</h2><p>Read the <a href="https://example.com/terms" target="_blank">full terms</a>.</p>' +
+      '<img src="x" onerror="window.__termsXss=1">' +
+      '<a href="javascript:window.__termsXss=2">script link</a>' +
+      "<script>window.__termsXss=3</script>" +
+      '<iframe srcdoc="<script>parent.__termsXss=4</script>"></iframe>' +
+      '<p onclick="window.__termsXss=5" style="background:url(javascript:1)">styled</p>',
+  },
   terms_disabled_with_stale_presets: {
     ...BASIC_CONFIG,
     text_only: true,
