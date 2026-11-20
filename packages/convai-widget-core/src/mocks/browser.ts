@@ -62,6 +62,11 @@ export const AGENTS = {
     use_rtc: true,
   },
   fail: BASIC_CONFIG,
+  malicious_terms: {
+    ...BASIC_CONFIG,
+    terms_html:
+      '<p>Malicious terms <a href="https://example.com/terms">Terms</a> <a href="javascript:window.__termsXss=2">Bad link</a></p><img src=x onerror="window.__termsXss=1"><script>window.__termsXss=3</script><svg onload="window.__termsXss=4"></svg>',
+  },
   // Held in the concurrency wait queue and never admitted.
   queued: BASIC_CONFIG,
   // Expanded with no transcript so the avatar overlay renders the waiting copy.
