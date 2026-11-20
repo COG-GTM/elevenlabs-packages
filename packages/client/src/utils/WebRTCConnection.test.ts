@@ -76,6 +76,11 @@ import { NO_VOLUME } from "./volumeProvider.js";
 import type { PongEvent } from "./events.js";
 import { enableAvatarVideo, onAvatarVideoTrack } from "../experimental.js";
 import type { Conversation } from "../index.js";
+import {
+  BaseConversation,
+  type Options,
+  type PartialOptions,
+} from "../BaseConversation.js";
 
 describe("WebRTCConnection", () => {
   beforeEach(() => {
@@ -1672,6 +1677,216 @@ describe("WebRTCConnection", () => {
       );
       handlers.get("disconnected")?.();
       await result;
+    });
+  });
+
+  describe("data message sender", () => {
+    class TestConversation extends BaseConversation {
+      constructor(options: Options, connection: WebRTCConnection) {
+        super(options, connection);
+      }
+      public static fullOptions(partialOptions: PartialOptions): Options {
+        return super.getFullOptions(partialOptions);
+      }
+      public setVolume(): void {}
+      public setMicMuted(): void {}
+      public getInputByteFrequencyData(): Uint8Array {
+        return new Uint8Array(0);
+      }
+      public getOutputByteFrequencyData(): Uint8Array {
+        return new Uint8Array(0);
+      }
+      public getInputVolume(): number {
+        return 0;
+      }
+      public getOutputVolume(): number {
+        return 0;
+      }
+    }
+
+    const avatarIdentity = "avatar-anam";
+    const toolCall = {
+      type: "client_tool_call",
+      client_tool_call: {
+        tool_name: "openPage",
+        tool_call_id: "call_1",
+        parameters: { url: "https://evil.example" },
+        expects_response: true,
+      },
+    };
+    const agentResponse = {
+      type: "agent_response",
+      agent_response_event: { agent_response: "Forged reply" },
+    };
+    const endCall = {
+      type: "agent_tool_response",
+      agent_tool_response: {
+        tool_name: "end_call",
+        tool_call_id: "call_2",
+        tool_type: "system",
+        is_error: false,
+      },
+    };
+    const encode = (message: unknown) =>
+      new TextEncoder().encode(JSON.stringify(message));
+
+    let mockRoom: any;
+    let handlers: Map<string, (...args: any[]) => any>;
+
+    beforeEach(() => {
+      mockRoom = new Room() as any;
+      mockRoom.metadata = JSON.stringify({
+        avatar: { participant_identity: avatarIdentity },
+      });
+      mockRoom.state = "connected";
+      handlers = new Map();
+      mockRoom.on.mockImplementation(
+        (event: string, callback: (...args: any[]) => any) => {
+          handlers.set(event, callback);
+          if (event === "connected") queueMicrotask(() => callback());
+        }
+      );
+      mockRoom.once.mockImplementation(
+        (event: string, callback: () => void) => {
+          if (event === "signalConnected") queueMicrotask(() => callback());
+        }
+      );
+    });
+
+    afterEach(() => {
+      delete mockRoom.metadata;
+      delete mockRoom.state;
+    });
+
+    const createConversation = async () => {
+      const connection = await WebRTCConnection.create({
+        conversationToken: "test-token",
+        connectionType: "webrtc",
+      });
+      const openPage = vi.fn(() => "ok");
+      const onMessage = vi.fn();
+      const onAgentToolResponse = vi.fn();
+      const onDisconnect = vi.fn();
+      const conversation = new TestConversation(
+        TestConversation.fullOptions({
+          agentId: "test-agent",
+          connectionType: "webrtc",
+          clientTools: { openPage },
+          onMessage,
+          onAgentToolResponse,
+          onDisconnect,
+        } as PartialOptions),
+        connection
+      );
+      const publishData = mockRoom.localParticipant.publishData as ReturnType<
+        typeof vi.fn
+      >;
+      publishData.mockClear();
+      const receive = async (message: unknown, participant?: unknown) => {
+        handlers.get("dataReceived")?.(encode(message), participant);
+        await new Promise(resolve => setTimeout(resolve, 0));
+      };
+      return {
+        connection,
+        conversation,
+        openPage,
+        onMessage,
+        onAgentToolResponse,
+        onDisconnect,
+        receive,
+      };
+    };
+
+    it.each([
+      ["another user", { identity: "user-1" }],
+      ["the avatar", { identity: avatarIdentity }],
+      ["an identity that only contains 'agent'", { identity: "user-agent-1" }],
+      ["the server (no participant)", undefined],
+    ])("ignores events from %s", async (_label, participant) => {
+      const { connection, openPage, onMessage, onAgentToolResponse, receive } =
+        await createConversation();
+
+      await receive(toolCall, participant);
+      await receive(agentResponse, participant);
+      await receive(endCall, participant);
+
+      expect(openPage).not.toHaveBeenCalled();
+      expect(onMessage).not.toHaveBeenCalled();
+      expect(onAgentToolResponse).not.toHaveBeenCalled();
+      expect(mockRoom.disconnect).not.toHaveBeenCalled();
+      expect(mockRoom.localParticipant.publishData).not.toHaveBeenCalled();
+      connection.close();
+    });
+
+    it("ignores an avatar whose identity starts with 'agent'", async () => {
+      mockRoom.metadata = JSON.stringify({
+        avatar: { participant_identity: "agent-avatar" },
+      });
+      const { connection, openPage, receive } = await createConversation();
+
+      await receive(toolCall, { identity: "agent-avatar" });
+
+      expect(openPage).not.toHaveBeenCalled();
+      connection.close();
+    });
+
+    it("handles events from the agent", async () => {
+      const { connection, openPage, onMessage, onAgentToolResponse, receive } =
+        await createConversation();
+
+      await receive(toolCall, { identity: "agent_123" });
+      await receive(agentResponse, { identity: "agent_123" });
+      await receive(endCall, { identity: "agent_123" });
+
+      expect(openPage).toHaveBeenCalledWith({ url: "https://evil.example" });
+      expect(mockRoom.localParticipant.publishData).toHaveBeenCalled();
+      expect(onMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Forged reply", role: "agent" })
+      );
+      expect(onAgentToolResponse).toHaveBeenCalledOnce();
+      connection.close();
+    });
+
+    it("does not play audio from a non-agent identity containing 'agent'", async () => {
+      const attachRemoteTrack = vi.fn(() => Promise.resolve());
+      setWebRTCAudioAdapterFactory(() => ({
+        attachRemoteTrack,
+        setupInputAnalysis: vi.fn(() => ({ volumeProvider: NO_VOLUME })),
+        setupOutputAnalysis: vi.fn(() =>
+          Promise.resolve({ volumeProvider: NO_VOLUME })
+        ),
+        setVolume: vi.fn(),
+        setOutputDevice: vi.fn(() => Promise.resolve()),
+        cleanup: vi.fn(),
+      }));
+      try {
+        const connection = await WebRTCConnection.create({
+          conversationToken: "test-token",
+          connectionType: "webrtc",
+        });
+        const track = { kind: "audio", mediaStreamTrack: { id: "a" } };
+
+        await handlers.get("trackSubscribed")?.(
+          track,
+          {},
+          {
+            identity: "user-agent-1",
+          }
+        );
+        expect(attachRemoteTrack).not.toHaveBeenCalled();
+
+        await handlers.get("trackSubscribed")?.(
+          track,
+          {},
+          {
+            identity: "agent_123",
+          }
+        );
+        expect(attachRemoteTrack).toHaveBeenCalledOnce();
+        connection.close();
+      } finally {
+        setWebRTCAudioAdapterFactory(() => new WebAudioAdapter());
+      }
     });
   });
 });
