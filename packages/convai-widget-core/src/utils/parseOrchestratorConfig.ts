@@ -21,25 +21,23 @@ function asStringList(value: unknown): string[] | undefined {
     : undefined;
 }
 
-function parseWebhook(
-  value: unknown
-): PostCallWebhookConfig | undefined | null {
+type WebhookParseResult =
+  | { webhook: PostCallWebhookConfig | undefined }
+  | { error: string };
+
+function parseWebhook(key: string, value: unknown): WebhookParseResult {
   if (value === undefined || value === null) {
-    return undefined;
+    return { webhook: undefined };
   }
   if (!isRecord(value) || typeof value.url !== "string" || !value.url) {
-    return null;
+    return { error: `${key} needs a string url` };
   }
-  if ("hmac_secret" in value && typeof value.hmac_secret !== "string") {
-    // Dropping just the secret would silently disable delivery signing.
-    return null;
+  if ("hmac_secret" in value) {
+    return {
+      error: `${key}.hmac_secret is not allowed: the page is public, so anyone can read it and sign forged deliveries. Configure webhook signing on the orchestrator instead.`,
+    };
   }
-  return {
-    url: value.url,
-    ...(typeof value.hmac_secret === "string"
-      ? { hmacSecret: value.hmac_secret }
-      : {}),
-  };
+  return { webhook: { url: value.url } };
 }
 
 export function parseOrchestratorConfig(
@@ -63,13 +61,19 @@ export function parseOrchestratorConfig(
       return null;
     }
     const transcriptionWebhook = parseWebhook(
+      "post_call_transcription_webhook",
       parsed.post_call_transcription_webhook
     );
-    const audioWebhook = parseWebhook(parsed.post_call_audio_webhook);
-    if (transcriptionWebhook === null || audioWebhook === null) {
-      console.error(
-        "[ConversationalAI] orchestrator-agent-config webhooks need a string url and, if given, a string hmac_secret"
-      );
+    const audioWebhook = parseWebhook(
+      "post_call_audio_webhook",
+      parsed.post_call_audio_webhook
+    );
+    if ("error" in transcriptionWebhook || "error" in audioWebhook) {
+      const error =
+        "error" in transcriptionWebhook
+          ? transcriptionWebhook.error
+          : (audioWebhook as { error: string }).error;
+      console.error(`[ConversationalAI] orchestrator-agent-config ${error}`);
       return null;
     }
     return {
@@ -87,8 +91,8 @@ export function parseOrchestratorConfig(
         typeof parsed.bedrock_inference_profile === "string"
           ? parsed.bedrock_inference_profile
           : undefined,
-      postCallTranscriptionWebhook: transcriptionWebhook,
-      postCallAudioWebhook: audioWebhook,
+      postCallTranscriptionWebhook: transcriptionWebhook.webhook,
+      postCallAudioWebhook: audioWebhook.webhook,
     };
   } catch (error) {
     console.error(

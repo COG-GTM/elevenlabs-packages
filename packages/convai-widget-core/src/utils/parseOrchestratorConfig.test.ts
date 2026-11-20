@@ -24,7 +24,6 @@ describe("parseOrchestratorConfig", () => {
           bedrock_inference_profile: "global",
           post_call_transcription_webhook: {
             url: "https://example.com/t",
-            hmac_secret: "0123456789abcdef",
           },
         })
       )
@@ -37,7 +36,6 @@ describe("parseOrchestratorConfig", () => {
       bedrockInferenceProfile: "global",
       postCallTranscriptionWebhook: {
         url: "https://example.com/t",
-        hmacSecret: "0123456789abcdef",
       },
       postCallAudioWebhook: undefined,
     });
@@ -139,4 +137,48 @@ describe("parseOrchestratorConfig", () => {
     ).toBeNull();
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
+
+  it.each(["post_call_transcription_webhook", "post_call_audio_webhook"])(
+    "rejects an hmac_secret in %s because the page attribute is public",
+    key => {
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const result = parseOrchestratorConfig(
+        "wss://host/convai",
+        JSON.stringify({
+          [key]: {
+            url: "https://example.com/hook",
+            hmac_secret: "0123456789abcdef",
+          },
+        })
+      );
+      expect(result).toBeNull();
+      expect(JSON.stringify(result)).not.toContain("0123456789abcdef");
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`${key}.hmac_secret is not allowed`)
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Configure webhook signing on the orchestrator")
+      );
+    }
+  );
+
+  it.each([null, "", 0])(
+    "rejects an hmac_secret key whatever its value (%j)",
+    secret => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      expect(
+        parseOrchestratorConfig(
+          "wss://host/convai",
+          JSON.stringify({
+            post_call_audio_webhook: {
+              url: "https://example.com/a",
+              hmac_secret: secret,
+            },
+          })
+        )
+      ).toBeNull();
+    }
+  );
 });
