@@ -506,6 +506,22 @@ const codeBlock = true;
     ...PERSISTENT_SESSION_AGENT,
     terms_html: "Test terms",
   },
+  override_link_https: {
+    ...BASIC_CONFIG,
+    override_link: "https://example.com/custom",
+  },
+  override_link_javascript: {
+    ...BASIC_CONFIG,
+    override_link: "javascript:alert(1)",
+  },
+  override_link_http: {
+    ...BASIC_CONFIG,
+    override_link: "http://example.com/custom",
+  },
+  override_link_invalid: {
+    ...BASIC_CONFIG,
+    override_link: "not a url",
+  },
   agent_attachments: TEXT_CHAT_CONFIG,
   product_carousel: TEXT_CHAT_CONFIG,
   product_cards: TEXT_CHAT_CONFIG,
