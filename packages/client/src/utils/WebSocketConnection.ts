@@ -12,7 +12,10 @@ import {
   type IncomingSocketEvent,
 } from "./events.js";
 import { constructOverrides } from "./overrides.js";
-import { constructEnclaveSetupConfig } from "./orchestrator.js";
+import {
+  assertOrchestratorWebhookSecretAllowed,
+  constructEnclaveSetupConfig,
+} from "./orchestrator.js";
 import { SessionConnectionError } from "./errors.js";
 import type {
   OutputEventTarget,
@@ -118,6 +121,7 @@ export class WebSocketConnection
       const { name: source, version } = sourceInfo;
 
       if (config.orchestrator) {
+        assertOrchestratorWebhookSecretAllowed(config.orchestrator);
         // Self-hosted orchestrators don't negotiate subprotocols; requesting one makes browsers fail the connection.
         url = config.orchestrator.url;
       } else {

@@ -44,7 +44,8 @@ function parseWebhook(
 
 export function parseOrchestratorConfig(
   rawUrl: string,
-  agentConfigJSON: string | undefined
+  agentConfigJSON: string | undefined,
+  allowInsecureWebhookSecret = false
 ): OrchestratorConfig | null {
   const url = rawUrl
     .replace(/^https:\/\//, "wss://")
@@ -72,6 +73,16 @@ export function parseOrchestratorConfig(
       );
       return null;
     }
+    const hasWebhookSecret =
+      transcriptionWebhook?.hmacSecret !== undefined ||
+      audioWebhook?.hmacSecret !== undefined;
+    if (hasWebhookSecret && !allowInsecureWebhookSecret) {
+      // Page attributes are readable by every visitor, who could then forge signed deliveries.
+      console.error(
+        '[ConversationalAI] orchestrator-agent-config webhook hmac_secret is visible to every visitor of the page. Configure the signing secret on the orchestrator instead, or set orchestrator-allow-insecure-webhook-secret="true" for development only.'
+      );
+      return null;
+    }
     return {
       url,
       agentConfig:
@@ -89,6 +100,7 @@ export function parseOrchestratorConfig(
           : undefined,
       postCallTranscriptionWebhook: transcriptionWebhook,
       postCallAudioWebhook: audioWebhook,
+      ...(hasWebhookSecret ? { allowInsecureWebhookSecret: true } : {}),
     };
   } catch (error) {
     console.error(

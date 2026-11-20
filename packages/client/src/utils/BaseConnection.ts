@@ -156,8 +156,10 @@ export type PostCallWebhookConfig = {
    * Secret the orchestrator uses to sign deliveries. The orchestrator
    * rejects secrets shorter than 16 characters. Anything set here is visible
    * to the end user running the page, like the rest of the orchestrator
-   * session config; intended for testing against trusted deployments, not
-   * production use.
+   * session config, so the session is rejected unless
+   * `OrchestratorConfig.allowInsecureWebhookSecret` is set. For development
+   * against trusted deployments only; configure production signing secrets
+   * on the orchestrator instead.
    */
   hmacSecret?: string;
 };
@@ -191,6 +193,13 @@ export type OrchestratorConfig = {
   postCallTranscriptionWebhook?: PostCallWebhookConfig;
   /** Called with the conversation audio once the session ends. */
   postCallAudioWebhook?: PostCallWebhookConfig;
+  /**
+   * Development-only opt-in to send a webhook `hmacSecret` from the browser.
+   * Without it, a session whose webhooks set `hmacSecret` fails before
+   * connecting, because every visitor can read the secret and forge signed
+   * deliveries. A warning is logged whenever the secret is sent.
+   */
+  allowInsecureWebhookSecret?: boolean;
 };
 
 export type PublicSessionConfig = BaseSessionConfig & {

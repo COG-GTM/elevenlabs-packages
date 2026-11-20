@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { constructEnclaveSetupConfig } from "./orchestrator.js";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import {
+  assertOrchestratorWebhookSecretAllowed,
+  constructEnclaveSetupConfig,
+} from "./orchestrator.js";
 
 describe("constructEnclaveSetupConfig", () => {
   it("maps unset fields to nulls", () => {
@@ -30,6 +33,7 @@ describe("constructEnclaveSetupConfig", () => {
           hmacSecret: "0123456789abcdef",
         },
         postCallAudioWebhook: { url: "https://example.com/audio" },
+        allowInsecureWebhookSecret: true,
       })
     ).toEqual({
       type: "enclave_setup_config",
@@ -44,5 +48,70 @@ describe("constructEnclaveSetupConfig", () => {
       },
       post_call_audio_webhook: { url: "https://example.com/audio" },
     });
+  });
+
+  it("omits hmac_secret without allowInsecureWebhookSecret", () => {
+    const event = constructEnclaveSetupConfig({
+      url: "ws://localhost:8000/sagemaker/convai/conversation",
+      postCallTranscriptionWebhook: {
+        url: "https://example.com/transcript",
+        hmacSecret: "0123456789abcdef",
+      },
+      postCallAudioWebhook: {
+        url: "https://example.com/audio",
+        hmacSecret: "0123456789abcdef",
+      },
+    });
+    expect(event.post_call_transcription_webhook).toEqual({
+      url: "https://example.com/transcript",
+    });
+    expect(event.post_call_audio_webhook).toEqual({
+      url: "https://example.com/audio",
+    });
+    expect(JSON.stringify(event)).not.toContain("hmac_secret");
+  });
+});
+
+describe("assertOrchestratorWebhookSecretAllowed", () => {
+  const url = "ws://localhost:8000/sagemaker/convai/conversation";
+  const webhook = {
+    url: "https://example.com/transcript",
+    hmacSecret: "0123456789abcdef",
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("accepts webhooks without a secret", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() =>
+      assertOrchestratorWebhookSecretAllowed({
+        url,
+        postCallTranscriptionWebhook: { url: webhook.url },
+      })
+    ).not.toThrow();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each(["postCallTranscriptionWebhook", "postCallAudioWebhook"] as const)(
+    "rejects an hmacSecret on %s without the development flag",
+    key => {
+      expect(() =>
+        assertOrchestratorWebhookSecretAllowed({ url, [key]: webhook })
+      ).toThrow(/allowInsecureWebhookSecret/);
+    }
+  );
+
+  it("warns when the development flag allows the secret", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() =>
+      assertOrchestratorWebhookSecretAllowed({
+        url,
+        postCallAudioWebhook: webhook,
+        allowInsecureWebhookSecret: true,
+      })
+    ).not.toThrow();
+    expect(warn).toHaveBeenCalledOnce();
   });
 });

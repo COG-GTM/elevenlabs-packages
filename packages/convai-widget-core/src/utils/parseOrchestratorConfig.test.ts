@@ -26,7 +26,8 @@ describe("parseOrchestratorConfig", () => {
             url: "https://example.com/t",
             hmac_secret: "0123456789abcdef",
           },
-        })
+        }),
+        true
       )
     ).toEqual({
       url: "wss://host/convai",
@@ -40,7 +41,44 @@ describe("parseOrchestratorConfig", () => {
         hmacSecret: "0123456789abcdef",
       },
       postCallAudioWebhook: undefined,
+      allowInsecureWebhookSecret: true,
     });
+  });
+
+  it.each(["post_call_transcription_webhook", "post_call_audio_webhook"])(
+    "rejects an hmac_secret in %s without the development flag",
+    key => {
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      expect(
+        parseOrchestratorConfig(
+          "wss://host/convai",
+          JSON.stringify({
+            [key]: {
+              url: "https://example.com/t",
+              hmac_secret: "0123456789abcdef",
+            },
+          })
+        )
+      ).toBeNull();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("orchestrator-allow-insecure-webhook-secret")
+      );
+    }
+  );
+
+  it("accepts webhooks without a secret and without the development flag", () => {
+    const config = parseOrchestratorConfig(
+      "wss://host/convai",
+      JSON.stringify({
+        post_call_audio_webhook: { url: "https://example.com/a" },
+      })
+    );
+    expect(config).toMatchObject({
+      postCallAudioWebhook: { url: "https://example.com/a" },
+    });
+    expect(config).not.toHaveProperty("allowInsecureWebhookSecret");
   });
 
   it("accepts the alternate export key names", () => {

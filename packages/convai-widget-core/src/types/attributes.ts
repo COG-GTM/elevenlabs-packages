@@ -23,6 +23,7 @@ export const CustomAttributeList = [
   "signed-url",
   "orchestrator-url",
   "orchestrator-agent-config",
+  "orchestrator-allow-insecure-webhook-secret",
   "terms-key",
   "server-location",
   "language",
